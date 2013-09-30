@@ -50,9 +50,9 @@ Authors
 =======
 <ul>
 <li>
-<a href="https://twitter.com/MicheleBertoli">@MicheleBertoli</a>
+<a href="https://twitter.com/MicheleBertoli" target=_blank>@MicheleBertoli</a>
 </li>
 <li>
-<a href="https://twitter.com/ufranchini">@ufranchini</a>
+<a href="https://twitter.com/ufranchini" target=_blank>@uFranchini</a>
 </li>
 </ul>
