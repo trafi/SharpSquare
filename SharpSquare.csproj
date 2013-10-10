@@ -57,6 +57,7 @@
     <Compile Include="Entities\FourSquareEntityItems.cs" />
     <Compile Include="Entities\FourSquareEntityUsers.cs" />
     <Compile Include="Entities\Hour.cs" />
+    <Compile Include="Entities\Icon.cs" />
     <Compile Include="Entities\Image.cs" />
     <Compile Include="Entities\Item.cs" />
     <Compile Include="Entities\Link.cs" />

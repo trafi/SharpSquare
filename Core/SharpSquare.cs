@@ -473,9 +473,7 @@ namespace FourSquare.SharpSquare.Core
         /// </summary>
         public List<Venue> SearchVenues(Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<Venue> venues = GetSingle<FourSquareEntityItems<Venue>>("/venues/search", parameters, true).response["groups"];
-
-            return venues.items;
+            return GetMultiple<Venue>("/venues/search", parameters, true).response["venues"];
         }
 
         /// <summary>
