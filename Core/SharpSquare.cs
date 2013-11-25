@@ -29,6 +29,7 @@ namespace FourSquare.SharpSquare.Core
         private string authenticateUrl = "https://foursquare.com/oauth2/authenticate";
         private string accessTokenUrl = "https://foursquare.com/oauth2/access_token";
         private string apiUrl = "https://api.foursquare.com/v2";
+        private string apiVersion = "20131002";
 
         public SharpSquare(string clientId, string clientSecret)
         {
@@ -114,7 +115,7 @@ namespace FourSquare.SharpSquare.Core
                 oauthToken = string.Format("oauth_token={0}", accessToken);
             }
 
-            string json = Request(string.Format("{0}{1}?{2}{3}", apiUrl, endpoint, oauthToken, serializedParameters), HttpMethod.GET);
+            string json = Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.GET);
             FourSquareSingleResponse<T> fourSquareResponse = new JavaScriptSerializer().Deserialize<FourSquareSingleResponse<T>>(json);
             return fourSquareResponse;
         }
@@ -152,7 +153,7 @@ namespace FourSquare.SharpSquare.Core
                 oauthToken = string.Format("oauth_token={0}", accessToken);
             }
 
-            string json = Request(string.Format("{0}{1}?{2}{3}", apiUrl, endpoint, oauthToken, serializedParameters), HttpMethod.GET);
+            string json = Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.GET);
             FourSquareMultipleResponse<T> fourSquareResponse = new JavaScriptSerializer().Deserialize<FourSquareMultipleResponse<T>>(json);
             return fourSquareResponse;
         }
