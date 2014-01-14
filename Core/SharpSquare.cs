@@ -5,7 +5,6 @@ using System.Web;
 using System.Net;
 using System.Text;
 using System.IO;
-using System.Web.Script.Serialization;
 using FourSquare.SharpSquare.Entities;
 
 namespace FourSquare.SharpSquare.Core
@@ -116,7 +115,10 @@ namespace FourSquare.SharpSquare.Core
             }
 
             string json = Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.GET);
-            FourSquareSingleResponse<T> fourSquareResponse = new JavaScriptSerializer().Deserialize<FourSquareSingleResponse<T>>(json);
+
+
+
+            FourSquareSingleResponse<T> fourSquareResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<FourSquareSingleResponse<T>>(json);
             return fourSquareResponse;
         }
 
@@ -154,7 +156,7 @@ namespace FourSquare.SharpSquare.Core
             }
 
             string json = Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.GET);
-            FourSquareMultipleResponse<T> fourSquareResponse = new JavaScriptSerializer().Deserialize<FourSquareMultipleResponse<T>>(json);
+            FourSquareMultipleResponse<T> fourSquareResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<FourSquareMultipleResponse<T>>(json);
             return fourSquareResponse;
         }
         
@@ -179,7 +181,7 @@ namespace FourSquare.SharpSquare.Core
             string serializedParameters = "";
 
             string json = Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.POST);
-            FourSquareSingleResponse<T> fourSquareResponse = new JavaScriptSerializer().Deserialize<FourSquareSingleResponse<T>>(json);
+            FourSquareSingleResponse<T> fourSquareResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<FourSquareSingleResponse<T>>(json);
             return fourSquareResponse;
         }
 
@@ -192,7 +194,7 @@ namespace FourSquare.SharpSquare.Core
             }
 
             string json = Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.POST);
-            FourSquareSingleResponse<T> fourSquareResponse = new JavaScriptSerializer().Deserialize<FourSquareSingleResponse<T>>(json);
+            FourSquareSingleResponse<T> fourSquareResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<FourSquareSingleResponse<T>>(json);
             return fourSquareResponse;
         }
 
@@ -205,7 +207,7 @@ namespace FourSquare.SharpSquare.Core
         {
             string url = string.Format("{0}?client_id={1}&client_secret={2}&grant_type=authorization_code&redirect_uri={3}&code={4}", accessTokenUrl, clientId, clientSecret, redirectUri, code);
             string json = Request(url, HttpMethod.GET);
-            AccessToken accessToken = new JavaScriptSerializer().Deserialize<AccessToken>(json);
+            AccessToken accessToken = Newtonsoft.Json.JsonConvert.DeserializeObject<AccessToken>(json);
             SetAccessToken(accessToken.access_token);
             return accessToken.access_token;
         }
