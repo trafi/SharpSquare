@@ -5,22 +5,21 @@ using System.Web;
 using System.Net;
 using System.Text;
 using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
 using FourSquare.SharpSquare.Entities;
 
 namespace FourSquare.SharpSquare.Core
 {
     public class SharpSquare
     {
-        private enum HttpMethod
-        {
-            GET,
-            POST
-        }
 
         private class AccessToken
         {
             public string access_token;
         }
+
+        private readonly HttpClient client;
 
         private string clientId = null;
         private string clientSecret = null;
@@ -34,6 +33,7 @@ namespace FourSquare.SharpSquare.Core
         {
             this.clientId = clientId;
             this.clientSecret = clientSecret;
+            client = new HttpClient();
         }
 
         public SharpSquare(string clientId, string clientSecret, string accessToken)
@@ -43,32 +43,30 @@ namespace FourSquare.SharpSquare.Core
             this.accessToken = accessToken;
         }
 
-        private string Request(string url, HttpMethod httpMethod)
+        private async Task<string> Request(string url, HttpMethod httpMethod)
         {
-            return Request(url, httpMethod, null);
+            return await Request(url, httpMethod, null);
         }
 
-        private string Request(string url, HttpMethod httpMethod, string data)
+        private async Task<string> Request(string url, HttpMethod httpMethod, string data)
         {
-            string result = string.Empty;
-            HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
-            httpWebRequest.Method = httpMethod.ToString();
+            var request = new HttpRequestMessage(httpMethod, url);
 
-            if (data != null)
+            if (data != null) request.Content = new StringContent(data, Encoding.UTF8);
+
+            // Send async
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
             {
-                byte[] bytes = UTF8Encoding.UTF8.GetBytes(data.ToString());
-                httpWebRequest.ContentLength = bytes.Length;
-                Stream stream = httpWebRequest.GetRequestStream();
-                stream.Write(bytes, 0, bytes.Length);
-                stream.Dispose();
-            }
-            
-            HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse();
-            StreamReader reader = new StreamReader(httpWebResponse.GetResponseStream());
-            result = reader.ReadToEnd();
-            reader.Dispose();
+                throw new Exception("Status code indicates error: " + response.StatusCode);
+            }            
 
-            return result;
+
+            // Read the answer
+            var stream = await response.Content.ReadAsStreamAsync();
+            var answer = new StreamReader(stream, Encoding.UTF8).ReadToEnd();
+
+            return answer;
         }
 
         private string SerializeDictionary(Dictionary<string, string> dictionary)
@@ -81,22 +79,22 @@ namespace FourSquare.SharpSquare.Core
             return parameters.Remove(parameters.Length - 1, 1).ToString();
         }
 
-        private FourSquareSingleResponse<T> GetSingle<T>(string endpoint) where T : FourSquareEntity
+        private async Task<FourSquareSingleResponse<T>> GetSingle<T>(string endpoint) where T : FourSquareEntity
         {
-            return GetSingle<T>(endpoint, null, false);
+            return await GetSingle<T>(endpoint, null, false);
         }
 
-        private FourSquareSingleResponse<T> GetSingle<T>(string endpoint, bool unauthenticated) where T : FourSquareEntity
+        private async Task<FourSquareSingleResponse<T>> GetSingle<T>(string endpoint, bool unauthenticated) where T : FourSquareEntity
         {
-            return GetSingle<T>(endpoint, null, unauthenticated);
+            return await GetSingle<T>(endpoint, null, unauthenticated);
         }
 
-        private FourSquareSingleResponse<T> GetSingle<T>(string endpoint, Dictionary<string, string> parameters) where T : FourSquareEntity
+        private async Task<FourSquareSingleResponse<T>> GetSingle<T>(string endpoint, Dictionary<string, string> parameters) where T : FourSquareEntity
         {
-            return GetSingle<T>(endpoint, parameters, false);
+            return await GetSingle<T>(endpoint, parameters, false);
         }
 
-        private FourSquareSingleResponse<T> GetSingle<T>(string endpoint, Dictionary<string, string> parameters, bool unauthenticated) where T : FourSquareEntity
+        private async Task<FourSquareSingleResponse<T>> GetSingle<T>(string endpoint, Dictionary<string, string> parameters, bool unauthenticated) where T : FourSquareEntity
         {
             string serializedParameters = "";
             if (parameters != null)
@@ -114,7 +112,7 @@ namespace FourSquare.SharpSquare.Core
                 oauthToken = string.Format("oauth_token={0}", accessToken);
             }
 
-            string json = Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.GET);
+            string json = await Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.Get);
 
 
 
@@ -122,22 +120,22 @@ namespace FourSquare.SharpSquare.Core
             return fourSquareResponse;
         }
 
-        private FourSquareMultipleResponse<T> GetMultiple<T>(string endpoint) where T : FourSquareEntity
+        private async Task<FourSquareMultipleResponse<T>> GetMultiple<T>(string endpoint) where T : FourSquareEntity
         {
-            return GetMultiple<T>(endpoint, null, false);
+            return await GetMultiple<T>(endpoint, null, false);
         }
 
-        private FourSquareMultipleResponse<T> GetMultiple<T>(string endpoint, bool unauthenticated) where T : FourSquareEntity
+        private async Task<FourSquareMultipleResponse<T>> GetMultiple<T>(string endpoint, bool unauthenticated) where T : FourSquareEntity
         {
-            return GetMultiple<T>(endpoint, null, unauthenticated);
+            return await GetMultiple<T>(endpoint, null, unauthenticated);
         }
 
-        private FourSquareMultipleResponse<T> GetMultiple<T>(string endpoint, Dictionary<string, string> parameters) where T : FourSquareEntity
+        private async Task<FourSquareMultipleResponse<T>> GetMultiple<T>(string endpoint, Dictionary<string, string> parameters) where T : FourSquareEntity
         {
-            return GetMultiple<T>(endpoint, parameters, false);
+            return await GetMultiple<T>(endpoint, parameters, false);
         }
 
-        private FourSquareMultipleResponse<T> GetMultiple<T>(string endpoint, Dictionary<string, string> parameters, bool unauthenticated) where T : FourSquareEntity
+        private async Task<FourSquareMultipleResponse<T>> GetMultiple<T>(string endpoint, Dictionary<string, string> parameters, bool unauthenticated) where T : FourSquareEntity
         {
             string serializedParameters = "";
             if (parameters != null)
@@ -155,17 +153,17 @@ namespace FourSquare.SharpSquare.Core
                 oauthToken = string.Format("oauth_token={0}", accessToken);
             }
 
-            string json = Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.GET);
+            string json = await Request(string.Format("{0}{1}?{2}{3}&v={4}", apiUrl, endpoint, oauthToken, serializedParameters, apiVersion), HttpMethod.Get);
             FourSquareMultipleResponse<T> fourSquareResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<FourSquareMultipleResponse<T>>(json);
             return fourSquareResponse;
         }
         
-        private void Post(string endpoint)
+        private async Task Post(string endpoint)
         {
-            Post(endpoint, null);
+            await Post(endpoint, null);
         }
 
-        private void Post(string endpoint, Dictionary<string, string> parameters)
+        private async Task Post(string endpoint, Dictionary<string, string> parameters)
         {
             string serializedParameters = "";
             if (parameters != null)
@@ -173,19 +171,19 @@ namespace FourSquare.SharpSquare.Core
                 serializedParameters = "&" + SerializeDictionary(parameters);
             }
 
-            string json = Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.POST);
+            string json = await Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.Post);
         }
 
-        private FourSquareSingleResponse<T> Post<T>(string endpoint) where T : FourSquareEntity
+        private async Task<FourSquareSingleResponse<T>> Post<T>(string endpoint) where T : FourSquareEntity
         {
             string serializedParameters = "";
 
-            string json = Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.POST);
+            string json = await Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.Post);
             FourSquareSingleResponse<T> fourSquareResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<FourSquareSingleResponse<T>>(json);
             return fourSquareResponse;
         }
 
-        private FourSquareSingleResponse<T> Post<T>(string endpoint, Dictionary<string, string> parameters) where T : FourSquareEntity
+        private async Task<FourSquareSingleResponse<T>> Post<T>(string endpoint, Dictionary<string, string> parameters) where T : FourSquareEntity
         {
             string serializedParameters = "";
             if (parameters != null)
@@ -193,7 +191,7 @@ namespace FourSquare.SharpSquare.Core
                 serializedParameters = "&" + SerializeDictionary(parameters);
             }
 
-            string json = Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.POST);
+            string json = await Request(string.Format("{0}{1}?oauth_token={2}{3}", apiUrl, endpoint, accessToken, serializedParameters), HttpMethod.Post);
             FourSquareSingleResponse<T> fourSquareResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<FourSquareSingleResponse<T>>(json);
             return fourSquareResponse;
         }
@@ -203,10 +201,10 @@ namespace FourSquare.SharpSquare.Core
             return string.Format("{0}?client_id={1}&response_type=code&redirect_uri={2}", authenticateUrl, clientId, redirectUri);
         }
 
-        public string GetAccessToken(string redirectUri, string code)
+        public async Task<string> GetAccessToken(string redirectUri, string code)
         {
             string url = string.Format("{0}?client_id={1}&client_secret={2}&grant_type=authorization_code&redirect_uri={3}&code={4}", accessTokenUrl, clientId, clientSecret, redirectUri, code);
-            string json = Request(url, HttpMethod.GET);
+            string json = await Request(url, HttpMethod.Get);
             AccessToken accessToken = Newtonsoft.Json.JsonConvert.DeserializeObject<AccessToken>(json);
             SetAccessToken(accessToken.access_token);
             return accessToken.access_token;
@@ -225,27 +223,27 @@ namespace FourSquare.SharpSquare.Core
         /// If the user is a friend, contact information, Facebook ID, and Twitter handle and the user's last checkin may also be present.
         /// In addition, the pings field will indicate whether checkins from this user will trigger a ping (notifications to mobile devices). This setting can be changed via setpings. Note that this setting is overriden if pings is false in settings (no pings will be sent, even if this user is set to true). 
         /// </summary>
-        public User GetUser(string userId)
+        public async Task<User> GetUser(string userId)
         {          
-            return GetSingle<User>("/users/" + userId).response["user"];
+            return (await GetSingle<User>("/users/" + userId)).response["user"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/users/search
         /// Returns an array of compact users's profiles.
         /// </summary>
-        public List<User> SearchUsers(Dictionary<string, string> parameters)
+        public async Task<List<User>> SearchUsers(Dictionary<string, string> parameters)
         {
-            return GetMultiple<User>("/users/search", parameters).response["results"];
+            return (await GetMultiple<User>("/users/search", parameters)).response["results"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/users/requests
         /// Shows a user the list of users with whom they have a pending friend request (i.e., someone tried to add the acting user as a friend, but the acting user has not accepted). 
         /// </summary>
-        public List<User> GetUserRequests()
+        public async Task<List<User>> GetUserRequests()
         {
-            return GetMultiple<User>("/users/requests").response["requests"];
+            return (await GetMultiple<User>("/users/requests")).response["requests"];
         }
 
         // TODO
@@ -260,14 +258,14 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/users/USER_ID/checkins
         /// Returns a history of checkins for the authenticated user.
         /// </summary>
-        public List<Checkin> GetUserCheckins(string userId)
+        public async Task<List<Checkin>> GetUserCheckins(string userId)
         {
-            return GetUserCheckins(userId, null);
+            return await GetUserCheckins(userId, null);
         }
 
-        public List<Checkin> GetUserCheckins(string userId, Dictionary<string, string> parameters)
+        public async Task<List<Checkin>> GetUserCheckins(string userId, Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<Checkin> checkins = GetSingle<FourSquareEntityItems<Checkin>>("/users/" + userId + "/checkins", parameters).response["checkins"];
+            FourSquareEntityItems<Checkin> checkins = (await GetSingle<FourSquareEntityItems<Checkin>>("/users/" + userId + "/checkins", parameters)).response["checkins"];
             return checkins.items;
         }
 
@@ -275,14 +273,14 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/users/USER_ID/friends
         /// Returns an array of a user's friends.
         /// </summary>
-        public List<User> GetUserFriends(string userId)
+        public async Task<List<User>> GetUserFriends(string userId)
         {
-            return GetUserFriends(userId, null);
+            return await GetUserFriends(userId, null);
         }
 
-        public List<User> GetUserFriends(string userId, Dictionary<string, string> parameters)
+        public async Task<List<User>> GetUserFriends(string userId, Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<User> friends = GetSingle<FourSquareEntityItems<User>>("/users/" + userId + "/friends", parameters).response["friends"];
+            FourSquareEntityItems<User> friends = (await GetSingle<FourSquareEntityItems<User>>("/users/" + userId + "/friends", parameters)).response["friends"];
             return friends.items;
         }
 
@@ -290,14 +288,14 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/users/USER_ID/tips
         /// Returns tips from a user.
         /// </summary>
-        public List<Tip> GetUserTips(string userId)
+        public async Task<List<Tip>> GetUserTips(string userId)
         {
-            return GetUserTips(userId, null);
+            return await GetUserTips(userId, null);
         }
 
-        public List<Tip> GetUserTips(string userId, Dictionary<string, string> parameters)
+        public async Task<List<Tip>> GetUserTips(string userId, Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<Tip> tips = GetSingle<FourSquareEntityItems<Tip>>("/users/" + userId + "/tips", parameters).response["tips"];
+            FourSquareEntityItems<Tip> tips = (await GetSingle<FourSquareEntityItems<Tip>>("/users/" + userId + "/tips", parameters)).response["tips"];
             
             return tips.items;
         }
@@ -323,14 +321,14 @@ namespace FourSquare.SharpSquare.Core
         /// Returns a list of all venues visited by the specified user, along with how many visits and when they were last there.
         /// This is an experimental API. We're excited about the innovation we think it enables as a much more efficient version of fetching all of a user's checkins, but we're also still learning if this right approach. Please give it a shot and provide feedback on the mailing list. Note that although the venuehistory endpoint currently returns all of the user's data, we expect to return only the last 6 months, requiring callers to page backwards as needed. We may also remove the lastHereAt value. Additionally, for anomalous users, we'll cap out at 500 unique venues. 
         /// </summary>
-        public List<VenueHistory> GetUserVenueHistory()
+        public async Task<List<VenueHistory>> GetUserVenueHistory()
         {
-            return GetUserVenueHistory(null);
+            return await GetUserVenueHistory(null);
         }
 
-        public List<VenueHistory> GetUserVenueHistory(Dictionary<string, string> parameters)
+        public async Task<List<VenueHistory>> GetUserVenueHistory(Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<VenueHistory> venues = GetSingle<FourSquareEntityItems<VenueHistory>>("/users/self/venuehistory").response["venues"];
+            FourSquareEntityItems<VenueHistory> venues = (await GetSingle<FourSquareEntityItems<VenueHistory>>("/users/self/venuehistory")).response["venues"];
             
             return venues.items;
         }
@@ -339,9 +337,9 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/users/USER_ID/request
         /// Sends a friend request to another user.
         /// </summary>
-        public User SendUserRequest(string userId)
+        public async Task<User> SendUserRequest(string userId)
         {
-            return Post<User>("/users/" + userId + "/request").response["user"];
+            return (await Post<User>("/users/" + userId + "/request")).response["user"];
         }
 
         /// <summary>
@@ -349,40 +347,40 @@ namespace FourSquare.SharpSquare.Core
         /// Cancels any relationship between the acting user and the specified user.
         /// Removes a friend, unfollows a celebrity, or cancels a pending friend request. 
         /// </summary>
-        public User SendUserUnfriend(string userId)
+        public async Task<User> SendUserUnfriend(string userId)
         {
-            return Post<User>("/users/" + userId + "/unfriend").response["user"];
+            return (await Post<User>("/users/" + userId + "/unfriend")).response["user"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/users/USER_ID/approve
         /// Approves a pending friend request from another user.
         /// </summary>
-        public User SendUserApprove(string userId)
+        public async Task<User> SendUserApprove(string userId)
         {
-            return Post<User>("/users/" + userId + "/approve").response["user"];
+            return (await Post<User>("/users/" + userId + "/approve")).response["user"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/users/USER_ID/deny
         /// Denies a pending friend request from another user.
         /// </summary>
-        public User SendUserDeny(string userId)
+        public async Task<User> SendUserDeny(string userId)
         {
-            return Post<User>("/users/" + userId + "/deny").response["user"];
+            return (await Post<User>("/users/" + userId + "/deny")).response["user"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/users/USER_ID/setpings
         /// Changes whether the acting user will receive pings (phone notifications) when the specified user checks in.
         /// </summary>
-        public User SetUserPings(string userId, string value)
+        public async Task<User> SetUserPings(string userId, string value)
         {
             Dictionary<string,string> parameters = new Dictionary<string,string>();
            
             parameters.Add("value", value);
             
-            return Post<User>("/users/" + userId + "/setpings", parameters).response["user"];
+            return (await Post<User>("/users/" + userId + "/setpings", parameters)).response["user"];
         }
 
         #endregion
@@ -394,9 +392,9 @@ namespace FourSquare.SharpSquare.Core
         /// Authenticated users will also receive information about who is here now.
         /// If the venue ID given is one that has been merged into another "master" venue, the response will show data about the "master" instead of giving you an error. 
         /// </summary>
-        public Venue GetVenue(string venueId)
+        public async Task<Venue> GetVenue(string venueId)
         {
-            return GetSingle<Venue>("/venues/" + venueId, true).response["venue"];
+            return (await GetSingle<Venue>("/venues/" + venueId, true)).response["venue"];
         }
 
         /// <summary>
@@ -407,9 +405,9 @@ namespace FourSquare.SharpSquare.Core
         /// All fields are optional, but one of either a valid address or a geolat/geolong pair must be provided. We recommend that developers provide a geolat/geolong pair in every case.
         /// Caller may also, optionally, pass in a category (primarycategoryid) to which you want this venue assigned. You can browse a full list of categories using the /categories method. On adding venue, we recommend that applications show the user this hierarchy and allow them to choose something suitable. 
         /// </summary>
-        public Venue AddVenue(Dictionary<string, string> parameters)
+        public async Task<Venue> AddVenue(Dictionary<string, string> parameters)
         {
-            return Post<Venue>("/venues/add", parameters).response["venue"];
+            return (await Post<Venue>("/venues/add", parameters)).response["venue"];
         }
         
         /// <summary>
@@ -418,9 +416,9 @@ namespace FourSquare.SharpSquare.Core
         /// When designing client applications, please download this list only once per session, but also avoid caching this data for longer than a week to avoid stale information. 
         /// This endpoint is part of the venues API (https://developer.foursquare.com/overview/venues.html). 
         /// </summary>
-        public List<Category> GetVenueCategories()
+        public async Task<List<Category>> GetVenueCategories()
         {
-            return GetMultiple<Category>("/venues/categories", true).response["categories"];
+            return (await GetMultiple<Category>("/venues/categories", true)).response["categories"];
         }
 
         /// <summary>
@@ -442,18 +440,18 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/venues/managed
         /// Get a list of venues the current user manages. 
         /// </summary>
-        public List<Venue> GetManagedVenues()
+        public async Task<List<Venue>> GetManagedVenues()
         {
-            return GetManagedVenues(null);
+            return await GetManagedVenues(null);
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/venues/managed
         /// Get a list of venues the current user manages. 
         /// </summary>
-        public List<Venue> GetManagedVenues (Dictionary<string, string> parameters)
+        public async Task<List<Venue>> GetManagedVenues (Dictionary<string, string> parameters)
         {
-            List<FourSquareEntityItems<Venue>> venueGroups = GetMultiple<FourSquareEntityItems<Venue>>("/venues/managed", parameters, true).response["venues"];
+            List<FourSquareEntityItems<Venue>> venueGroups = (await GetMultiple<FourSquareEntityItems<Venue>>("/venues/managed", parameters, true)).response["venues"];
 
             List<Venue> venueList = new List<Venue>();
 
@@ -474,27 +472,27 @@ namespace FourSquare.SharpSquare.Core
         /// You'll also notice a stats block that reveals some count data about the venue. herenow shows the number of people currently there (this value can be 0). 
         /// This endpoint is part of the venues API (https://developer.foursquare.com/overview/venues.html). 
         /// </summary>
-        public List<Venue> SearchVenues(Dictionary<string, string> parameters)
+        public async Task<List<Venue>> SearchVenues(Dictionary<string, string> parameters)
         {
-            return GetMultiple<Venue>("/venues/search", parameters, true).response["venues"];
+            return (await GetMultiple<Venue>("/venues/search", parameters, true)).response["venues"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/venues/timeseries
         /// Get daily venue stats for a list of venues over a time range.  
         /// </summary>
-        public List<VenueTimeSerie> GetVenueTimeSeriesData (Dictionary<string, string> parameters)
+        public async Task<List<VenueTimeSerie>> GetVenueTimeSeriesData (Dictionary<string, string> parameters)
         {
-            return GetMultiple<VenueTimeSerie>("/venues/timeseries", parameters, true).response["timeseries"];
+            return (await GetMultiple<VenueTimeSerie>("/venues/timeseries", parameters, true)).response["timeseries"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/venues/suggestcompletion
         /// Returns a list of mini-venues partially matching the search term, near the location. 
         /// </summary>
-        public List<Venue> GetSuggestCompletionVenues(Dictionary<string, string> parameters)
+        public async Task<List<Venue>> GetSuggestCompletionVenues(Dictionary<string, string> parameters)
         {
-            return GetMultiple<Venue>("/venues/suggestcompletion", parameters, true).response["minivenues"];
+            return (await GetMultiple<Venue>("/venues/suggestcompletion", parameters, true)).response["minivenues"];
         }
         
         /// <summary>
@@ -502,9 +500,9 @@ namespace FourSquare.SharpSquare.Core
         /// Returns a list of venues near the current location with the most people currently checked in.
         /// This endpoint is part of the venues API (https://developer.foursquare.com/overview/venues.html). 
         /// </summary>
-        public List<Venue> GetTrendingVenues(Dictionary<string, string> parameters)
+        public async Task<List<Venue>> GetTrendingVenues(Dictionary<string, string> parameters)
         {
-            return GetMultiple<Venue>("/venues/trending", parameters, true).response["venues"];
+            return (await GetMultiple<Venue>("/venues/trending", parameters, true)).response["venues"];
         }
 
         /// <summary>
@@ -512,14 +510,14 @@ namespace FourSquare.SharpSquare.Core
         /// Provides a count of how many people are at a given venue, plus the first page of the users there, friends-first, and if the current user is authenticated.
         /// This is an experimental API. We're excited about the innovation we think it enables as a much more efficient version of fetching all data about a venue, but we're also still learning if this right approach. Please give it a shot and provide feedback on the mailing list. 
         /// </summary>
-        public List<Checkin> GetVenueHereNow(string venueId)
+        public async Task<List<Checkin>> GetVenueHereNow(string venueId)
         {
-            return GetVenueHereNow(venueId, null);
+            return await GetVenueHereNow(venueId, null);
         }
 
-        public List<Checkin> GetVenueHereNow(string venueId, Dictionary<string, string> parameters)
+        public async Task<List<Checkin>> GetVenueHereNow(string venueId, Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<Checkin> checkins = GetSingle<FourSquareEntityItems<Checkin>>("/venues/" + venueId + "/herenow", parameters, true).response["hereNow"];
+            FourSquareEntityItems<Checkin> checkins = (await GetSingle<FourSquareEntityItems<Checkin>>("/venues/" + venueId + "/herenow", parameters, true)).response["hereNow"];
            
             return checkins.items;
         }
@@ -528,14 +526,14 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/venues/VENUE_ID/tips
         /// Returns tips for a venue.
         /// </summary>
-        public List<Tip> GetVenueTips(string venueId)
+        public async Task<List<Tip>> GetVenueTips(string venueId)
         {
-            return GetVenueTips(venueId, null);
+            return await GetVenueTips(venueId, null);
         }
 
-        public List<Tip> GetVenueTips(string venueId, Dictionary<string, string> parameters)
+        public async Task<List<Tip>> GetVenueTips(string venueId, Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<Tip> tips = GetSingle<FourSquareEntityItems<Tip>>("/venues/" + venueId + "/tips", parameters, true).response["tips"];
+            FourSquareEntityItems<Tip> tips = (await GetSingle<FourSquareEntityItems<Tip>>("/venues/" + venueId + "/tips", parameters, true)).response["tips"];
             
             return tips.items;
         }
@@ -544,9 +542,9 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/venues/VENUE_ID/photos
         /// Returns photos for a venue. 
         /// </summary>
-        public List<Photo> GetVenuePhotos(string venueId, Dictionary<string, string> parameters)
+        public async Task<List<Photo>> GetVenuePhotos(string venueId, Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<Photo> photos = GetSingle<FourSquareEntityItems<Photo>>("/venues/" + venueId + "/photos", parameters, true).response["photos"];
+            FourSquareEntityItems<Photo> photos = (await GetSingle<FourSquareEntityItems<Photo>>("/venues/" + venueId + "/photos", parameters, true)).response["photos"];
             return photos.items;
         }
 
@@ -555,9 +553,9 @@ namespace FourSquare.SharpSquare.Core
         /// Returns URLs or identifiers from third parties that have been applied to this venue, such as how the New York Times refers to this venue and a URL for additional information from nytimes.com. This is part of the foursquare Venue Map.
         /// This is an experimental endpoint and very much subject to change. Please provide us feedback in the forum.
         /// </summary>
-        public List<Link> GetVenueLinks(string venueId)
+        public async Task<List<Link>> GetVenueLinks(string venueId)
         {
-            FourSquareEntityItems<Link> links = GetSingle<FourSquareEntityItems<Link>>("/venues/" + venueId + "/links", true).response["links"];
+            FourSquareEntityItems<Link> links = (await GetSingle<FourSquareEntityItems<Link>>("/venues/" + venueId + "/links", true)).response["links"];
             
             return links.items;
         }
@@ -566,13 +564,13 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/venues/VENUE_ID/marktodo
         /// Allows you to mark a venue to-do, with optional text.
         /// </summary>
-        public Todo SetVenueToDo(string venueId, string text)
+        public async Task<Todo> SetVenueToDo(string venueId, string text)
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             
             parameters.Add("text", text);
 
-            return Post<Todo>("/venues/" + venueId + "/marktodo", parameters).response["todo"];
+            return (await Post<Todo>("/venues/" + venueId + "/marktodo", parameters)).response["todo"];
         }
 
         /// <summary>
@@ -594,14 +592,14 @@ namespace FourSquare.SharpSquare.Core
         /// Allows you to propose a change to a venue.
         /// If the user knows a correct address, use this method to save it. Otherwise, use flag to flag the venue instead (you need not specify a new address or geolat/geolong in that case). 
         /// </summary>
-        public void SetVenueProposeEdit(string venueId)
+        public async Task SetVenueProposeEdit(string venueId)
         {
-            Post("/venues/" + venueId + "/proposeedit");
+            await Post("/venues/" + venueId + "/proposeedit");
         }
 
-        public void SetVenueProposeEdit(string venueId, Dictionary<string, string> parameters)
+        public async Task SetVenueProposeEdit(string venueId, Dictionary<string, string> parameters)
         {
-            Post("/venues/" + venueId + "/proposeedit", parameters);
+            await Post("/venues/" + venueId + "/proposeedit", parameters);
         }
 
         //Checkin
@@ -609,9 +607,9 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/checkins/CHECKIN_ID
         /// Get details of a checkin.
         /// </summary>
-        public Checkin GetCheckin(string checkinId)
+        public async Task<Checkin> GetCheckin(string checkinId)
         {
-            return GetSingle<Checkin>("/checkins/" + checkinId).response["checkin"];
+            return (await GetSingle<Checkin>("/checkins/" + checkinId)).response["checkin"];
         }
         
         /// <summary>
@@ -619,23 +617,23 @@ namespace FourSquare.SharpSquare.Core
         /// Allows you to check in to a place. 
         /// Checkins will always have notifications included.
         /// </summary>
-        public Checkin AddCheckin(Dictionary<string, string> parameters)
+        public async Task<Checkin> AddCheckin(Dictionary<string, string> parameters)
         {
-            return Post<Checkin>("/checkins/add", parameters).response["checkin"];
+            return (await Post<Checkin>("/checkins/add", parameters)).response["checkin"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/checkins/recent
         /// Returns a list of recent checkins from friends.
         /// </summary>
-        public List<Checkin> GetRecentCheckin()
+        public async Task<List<Checkin>> GetRecentCheckin()
         {
-            return GetRecentCheckin(null);
+            return await GetRecentCheckin(null);
         }
 
-        public List<Checkin> GetRecentCheckin(Dictionary<string, string> parameters)
+        public async Task<List<Checkin>> GetRecentCheckin(Dictionary<string, string> parameters)
         {
-            return  GetMultiple<Checkin>("/checkins/recent", parameters).response["recent"];
+            return (await GetMultiple<Checkin>("/checkins/recent", parameters)).response["recent"];
         }
 
         /// <summary>
@@ -669,36 +667,36 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/tips/TIP_ID
         /// Gives details about a tip, including which users (especially friends) have marked the tip to-do or done.
         /// </summary>
-        public Tip GetTip(string tipId)
+        public async Task<Tip> GetTip(string tipId)
         {
-            return GetSingle<Tip>("/tips/" + tipId, true).response["tip"];
+            return (await GetSingle<Tip>("/tips/" + tipId, true)).response["tip"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/tips/add
         /// Allows you to add a new tip at a venue.
         /// </summary>
-        public Tip AddTip(Dictionary<string, string> parameters)
+        public async Task<Tip> AddTip(Dictionary<string, string> parameters)
         {
-            return Post<Tip>("/tips/add", parameters).response["tip"];
+            return (await Post<Tip>("/tips/add", parameters)).response["tip"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/tips/search
         /// Returns a list of tips near the area specified.
         /// </summary>
-        public List<Tip> SearchTips(Dictionary<string, string> parameters)
+        public async Task<List<Tip>> SearchTips(Dictionary<string, string> parameters)
         {
-            return GetMultiple<Tip>("/tips/search", parameters, true).response["tips"];
+            return (await GetMultiple<Tip>("/tips/search", parameters, true)).response["tips"];
         }
 
         /// <summary>
         /// https://api.foursquare.com/v2/tips/TIP_ID/marktodo
         /// Allows you to mark a tip to-do.
         /// </summary>
-        public Todo SetTipToDo(string tipId)
+        public async Task<Todo> SetTipToDo(string tipId)
         {
-            return Post<Todo>("/tips/" + tipId + "/marktodo").response["todo"];
+            return (await Post<Todo>("/tips/" + tipId + "/marktodo")).response["todo"];
         }
 
         /// <summary>
@@ -724,9 +722,9 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/photos/PHOTO_ID
         /// Get details of a photo.
         /// </summary>
-        public Photo GetPhoto(string photoId)
+        public async Task<Photo> GetPhoto(string photoId)
         {
-            return GetSingle<Photo>("/photos/" + photoId).response["photo"];
+            return (await GetSingle<Photo>("/photos/" + photoId)).response["photo"];
         }
 
         /// <summary>
@@ -738,9 +736,9 @@ namespace FourSquare.SharpSquare.Core
         /// Multiple photos can be attached to a checkin or venue, but there can only be one photo per tip. 
         /// To avoid double-tweeting, if you are sending a checkin that will be immediately followed by a photo, do not set broadcast=twitter on the checkin, and just set it on the photo.
         /// </summary>
-        public Photo AddPhoto(Dictionary<string, string> parameters)
+        public async Task<Photo> AddPhoto(Dictionary<string, string> parameters)
         {
-            return Post<Photo>("/photos/add", parameters).response["photo"];
+            return (await Post<Photo>("/photos/add", parameters)).response["photo"];
         }
 
         //Settings
@@ -748,9 +746,9 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/settings/all
         /// Returns a setting for the acting user.
         /// </summary>
-        public Setting GetSettings()
+        public async Task<Setting> GetSettings()
         {
-            return GetSingle<Setting>("/settings/all").response["settings"];
+            return (await GetSingle<Setting>("/settings/all")).response["settings"];
         }
 
         /*NEXT Version
@@ -777,9 +775,9 @@ namespace FourSquare.SharpSquare.Core
         /// https://api.foursquare.com/v2/specials/SPECIAL_ID
         /// Gives details about a special, including text and unlock rules.
         /// </summary>
-        public Special GetSpecial(string specialId)
+        public async Task<Special> GetSpecial(string specialId)
         {
-            return GetSingle<Special>("/specials/" + specialId, true).response["special"];
+            return (await GetSingle<Special>("/specials/" + specialId, true)).response["special"];
         }
 
         /// <summary>
@@ -787,9 +785,9 @@ namespace FourSquare.SharpSquare.Core
         /// Returns a list of specials near the current location.
         /// This is an experimental API. We'd love your feedback as we solidify it over the next few weeks. 
         /// </summary>
-        public List<Special> SearchSpecials(Dictionary<string, string> parameters)
+        public async Task<List<Special>> SearchSpecials(Dictionary<string, string> parameters)
         {
-            FourSquareEntityItems<Special> specials = GetSingle<FourSquareEntityItems<Special>>("/specials/search", parameters).response["specials"];
+            FourSquareEntityItems<Special> specials = (await GetSingle<FourSquareEntityItems<Special>>("/specials/search", parameters)).response["specials"];
             
             return specials.items;
         }
