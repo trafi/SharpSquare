@@ -58,7 +58,10 @@ namespace FourSquare.SharpSquare.Core
             var response = await client.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
-                throw new Exception("Status code indicates error: " + response.StatusCode);
+                string errorResponse = null;
+                if (response.Content != null) errorResponse = await response.Content.ReadAsStringAsync();
+
+                throw new Exception(string.Format("Status code indicates error: {0}, Response: \n{1}", response.StatusCode, errorResponse));
             }            
 
 
