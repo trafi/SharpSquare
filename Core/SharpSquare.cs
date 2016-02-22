@@ -29,18 +29,13 @@ namespace FourSquare.SharpSquare.Core
         private string apiUrl = "https://api.foursquare.com/v2";
         private string apiVersion = "20131002";
 
-        public SharpSquare(string clientId, string clientSecret)
+        public SharpSquare(string clientId, string clientSecret, int timeoutMs = 1000)
         {
             this.clientId = clientId;
             this.clientSecret = clientSecret;
-            client = new HttpClient();
-        }
-
-        public SharpSquare(string clientId, string clientSecret, string accessToken)
-        {
-            this.clientId = clientId;
-            this.clientSecret = clientSecret;
-            this.accessToken = accessToken;
+            client = new HttpClient() {
+                Timeout = TimeSpan.FromMilliseconds(timeoutMs)
+            };
         }
 
         private async Task<string> Request(string url, HttpMethod httpMethod)
