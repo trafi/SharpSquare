@@ -85,6 +85,7 @@
     <Compile Include="Entities\Source.cs" />
     <Compile Include="Entities\Special.cs" />
     <Compile Include="Entities\Stat.cs" />
+    <Compile Include="Entities\MiniVenue.cs" />
     <Compile Include="Entities\TimeFrame.cs" />
     <Compile Include="Entities\Tip.cs" />
     <Compile Include="Entities\Todo.cs" />
