@@ -8,6 +8,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using FourSquare.SharpSquare.Entities;
+using SharpSquare.Entities;
 
 namespace FourSquare.SharpSquare.Core
 {
@@ -788,6 +789,15 @@ namespace FourSquare.SharpSquare.Core
             FourSquareEntityItems<Special> specials = (await GetSingle<FourSquareEntityItems<Special>>("/specials/search", parameters)).response["specials"];
             
             return specials.items;
+        }
+
+        /// <summary>
+        /// https://developer.foursquare.com/docs/venues/suggestcompletion
+        /// Returns a list of mini-venues partially matching the search term, near the location.
+        /// </summary>
+        public async Task<List<MiniVenue>> SuggestCompletion(Dictionary<string, string> parameters)
+        {
+            return (await GetMultiple<MiniVenue>("/venues/suggestcompletion", parameters, true)).response["minivenues"];
         }
     }
 }
